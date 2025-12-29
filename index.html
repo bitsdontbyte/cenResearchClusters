@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CEN Research Clusters 2025</title>
+
+  <link href="https://unpkg.com/tabulator-tables@5.6.0/dist/css/tabulator.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+
+  <style>
+    :root { --bg:#fff; --fg:#111; --border:#e5e7eb; }
+
+    body {
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      /*background:var(--bg);*/
+	  background: #f3f4f6; /* light grey */
+      color:var(--fg);
+    }
+
+    h1 {
+      text-align:center;
+      color:#1D4ED8;
+      font-size:clamp(1.8rem, 4vw, 2.5rem);
+      margin:16px 8px 4px 8px;
+    }
+
+    .subtitle {
+      text-align:center;
+      font-size:14px;
+      color:#4B5563;
+      margin-bottom:10px;
+    }
+
+    .controls {
+      padding: 10px 14px 14px 14px;
+      background: #f9fafb;
+      border-bottom: 1px solid var(--border);
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px 20px;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .controls label {
+      font-size: 14px;
+      white-space:nowrap;
+      display:flex;
+      flex-wrap:nowrap;
+      align-items:center;
+      gap:6px;
+    }
+
+    .controls select,
+    .controls input[type="text"] {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+      max-width: 220px;
+    }
+
+    .controls input[type="text"] {
+      width: 200px;
+    }
+
+    @media (max-width: 600px) {
+      .controls {
+        justify-content:flex-start;
+      }
+      .controls label {
+        width:100%;
+      }
+      .controls input[type="text"] {
+        width:100%;
+        max-width:none;
+      }
+    }
+
+    .popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      display: none;
+    }
+
+    .popup-content {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      width: 92%;
+      max-width: 600px;
+      max-height: 92%;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 1001;
+      font-size: 12px;
+      box-sizing:border-box;
+    }
+
+    .popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 6px;
+    }
+
+    .popup-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: #333;
+      margin-right:8px;
+    }
+
+    .popup-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: #666;
+      padding:0;
+      line-height:1;
+    }
+
+    .popup-close:hover { color: #000; }
+
+    .popup-body-section {
+      margin-bottom: 10px;
+    }
+
+    .popup-body-section h3 {
+      margin: 8px 0 4px 0;
+      font-size: 13px;
+      font-weight:600;
+      color:#111827;
+    }
+
+    .popup-body-section p {
+      margin: 2px 0 6px 0;
+      line-height:1.4;
+    }
+
+    .popup-pub-list {
+      list-style:none;
+      padding-left:0;
+      margin:0;
+    }
+
+    .popup-pub-item {
+      margin-bottom:8px;
+      padding-bottom:8px;
+      border-bottom:1px solid #e5e7eb;
+    }
+
+    .popup-pub-item:last-child {
+      border-bottom:none;
+      margin-bottom:0;
+      padding-bottom:0;
+    }
+
+    .popup-pub-title {
+      font-weight:600;
+      margin-bottom:2px;
+    }
+
+    .popup-meta {
+      font-size:11px;
+      color:#4B5563;
+      margin-bottom:2px;
+    }
+
+    .popup-doi a {
+      font-size:11px;
+      color:#2563EB;
+      text-decoration:none;
+      word-break:break-all;
+    }
+
+    .popup-doi a:hover {
+      text-decoration:underline;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display:block;
+    }
+	.controls label {
+  font-weight: 700;
+  color: #B91C1C;
+}
+  </style>
+</head>
+<body>
+
+  <h1>CEN Research Clusters 2025</h1>
+  
+  <div class="controls">
+    <label>
+      Cluster
+      <select id="clusterFilter">
+        <option value="ALL">All Clusters</option>
+      </select>
+    </label>
+
+    <label>
+      Theme
+      <select id="themeFilter">
+        <option value="ALL">All Themes</option>
+      </select>
+    </label>
+
+    <label>
+      Faculty
+      <select id="authorFilter">
+        <option value="ALL">All Faculty</option>
+      </select>
+    </label>
+
+    <label>
+      Search
+      <input
+        type="text"
+        id="keywordFilter"
+        placeholder="Faculty, cluster, theme, title, DOI"
+      />
+    </label>
+  </div>
+
+  <div class="popup-overlay" id="popupOverlay">
+    <div class="popup-content">
+      <div class="popup-header">
+        <div class="popup-title" id="popupTitle">Details</div>
+        <button class="popup-close" onclick="closePopup()">&times;</button>
+      </div>
+      <div id="popupBody"></div>
+    </div>
+  </div>
+
+  <div id="mount"></div>
+
+  <script>
+    let rawData = null;
+    let selectedAuthorName = 'ALL';
+    let selectedClusterFilter = 'ALL';
+    let selectedThemeFilter = 'ALL';
+    let keywordFilterText = '';
+
+    function closePopup() {
+      document.getElementById('popupOverlay').style.display = 'none';
+    }
+
+    document.getElementById('popupOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closePopup();
+    });
+
+    function openPopup(title, htmlBody) {
+      document.getElementById('popupTitle').textContent = title || 'Details';
+      document.getElementById('popupBody').innerHTML = htmlBody || '';
+      document.getElementById('popupOverlay').style.display = 'block';
+    }
+
+    const excludedAuthors = [
+      "7005981380", // Taleb Ibrahim
+      "7005259343"  // Abdulrahman Al-Ali
+    ];
+    const excludedNames = [
+      "taleb ibrahim",
+      "abdulrahman al-ali"
+    ];
+
+    // fetch JSON 
+    const timestamp = Date.now();
+    fetch(`./clusters_predefined.json?v=${timestamp}`)
+      .then(r => r.json())
+      .then(data => {
+        rawData = data;
+        initializeFilters(data);
+        updateVisualization();
+      })
+      .catch(err => {
+        document.getElementById("mount").innerHTML = `
+          <div style="padding: 20px; text-align: center;">
+            <h3>Error loading data</h3>
+            <p>Check clusters_gold.json is in same folder as index.html and valid JSON.</p>
+            <p>Error: ${err.message}</p>
+          </div>`;
+      });
+
+    // ---------- name helpers ----------
+
+    function getAuthorName(author) {
+      const explicit =
+        author.person_name ||
+        author.full_name ||
+        (author.first_name && author.last_name && `${author.first_name} ${author.last_name}`) ||
+        author.label;
+
+      let base = explicit && typeof explicit === 'string'
+        ? explicit
+        : (typeof author.name === 'string' ? author.name : '');
+
+      if (!base || !base.trim().length) {
+        if (author.author_id) return `Author ${author.author_id}`;
+        return 'Unknown';
+      }
+
+      return base.replace(/\s*\(.*$/, '').trim();
+    }
+
+    function getThemeLabel(themeData) {
+      const raw = (themeData && themeData.name) ? themeData.name : '';
+      // strip "Theme X:" prefix if present
+      return raw.replace(/^Theme\s*\d+\s*:\s*/i, '').trim();
+    }
+
+    function authorPaperCount(author) {
+      if (author.dominant_papers != null) return Number(author.dominant_papers) || 0;
+      if (Array.isArray(author.theme_publications)) return author.theme_publications.length;
+      if (typeof author.value === 'number') return author.value;
+      return 0;
+    }
+
+    // ---------- filter dropdown population ----------
+
+    function initializeFilters(data) {
+      populateAuthorDropdown(data);
+      populateClusterDropdown(data);
+      populateThemeDropdown(data);
+
+      document.getElementById('authorFilter').addEventListener('change', updateVisualization);
+      document.getElementById('clusterFilter').addEventListener('change', updateVisualization);
+      document.getElementById('themeFilter').addEventListener('change', updateVisualization);
+      document.getElementById('keywordFilter').addEventListener('input', updateVisualization);
+    }
+
+    function populateAuthorDropdown(data) {
+      const names = new Set();
+      (data.children || []).forEach(cluster => {
+        (cluster.children || []).forEach(theme => {
+          (theme.children || []).forEach(author => {
+            const id = String(author.id || "").trim();
+            const name = getAuthorName(author).toLowerCase();
+            if (!excludedAuthors.includes(id) && !excludedNames.includes(name)) {
+              names.add(getAuthorName(author));
+            }
+          });
+        });
+      });
+      const sel = document.getElementById('authorFilter');
+      const sorted = Array.from(names)
+        .filter(n => n && n !== 'Unknown')
+        .sort((a,b)=>a.localeCompare(b));
+      sorted.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
+      });
+    }
+
+    function populateClusterDropdown(data) {
+      const names = new Set();
+      (data.children || []).forEach(cluster => {
+        if (cluster && cluster.name) names.add(cluster.name.trim());
+      });
+      const sel = document.getElementById('clusterFilter');
+      const sorted = Array.from(names).sort((a,b)=>a.localeCompare(b));
+      sorted.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
+      });
+    }
+
+    function populateThemeDropdown(data) {
+      const names = new Set();
+      (data.children || []).forEach(cluster => {
+        (cluster.children || []).forEach(theme => {
+          const label = getThemeLabel(theme);
+          if (label) names.add(label);
+        });
+      });
+      const sel = document.getElementById('themeFilter');
+      const sorted = Array.from(names).sort((a,b)=>a.localeCompare(b));
+      sorted.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        sel.appendChild(opt);
+      });
+    }
+
+    // ---------- data filters ----------
+
+    function filterAuthorsByMinItems(data) {
+      const alwaysInclude = [
+        'Ihab Amer',
+        'Bara Emran',
+        'Ammar Hasan',
+        'Reham Aburas',
+        'Anastassia Gharib',
+        'Dana Dghaym',
+        'Faisal Alkaabneh',
+        'Magdi El-Emam',
+        'Mehmet Orhan',
+        'Michel Pasquier',
+        'Mohamed AlHajri',
+        'Amer Zakaria',
+        'Nasser Qaddoumi',
+        'Omar Arif',
+        'Rachid Chebbi',
+        'Tamer Shanableh',
+        'Sami Tabsh',
+        'Serter Atabay',
+        'Taha Landolsi'
+      ].map(n => n.toLowerCase());
+
+      const filtered = JSON.parse(JSON.stringify(data));
+
+      filtered.children = (filtered.children || []).map(cluster => {
+        cluster.children = (cluster.children || []).map(theme => {
+          theme.children = (theme.children || []).filter(author => {
+            const id = String(author.id || "").trim();
+            const name = getAuthorName(author).toLowerCase();
+            const count = authorPaperCount(author);
+
+            if (excludedAuthors.includes(id) || excludedNames.includes(name)) return false;
+            if (alwaysInclude.includes(name)) return true;
+
+            return count >= 2;
+          });
+          return theme;
+        }).filter(theme => (theme.children || []).length > 0);
+        return cluster;
+      }).filter(cluster => (cluster.children || []).length > 0);
+
+      return filtered;
+    }
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function matchesExactWord(text, keyword) {
+  if (!keyword) return true;
+  if (!text) return false;
+
+  const pattern = "\\b" + escapeRegExp(keyword.trim()) + "\\b";
+  const re = new RegExp(pattern, "i");  // case-insensitive
+  return re.test(text);
+}
+
+	
+	function applyAllFilters(data) {
+  if (!data) return { children: [] };
+
+  // normalize filter values to lowercase
+  const authorFilterVal  = (selectedAuthorName      || 'ALL').toLowerCase();
+  const clusterFilterVal = (selectedClusterFilter   || 'ALL').toLowerCase();
+  const themeFilterVal   = (selectedThemeFilter     || 'ALL').toLowerCase();
+  const kw               = (keywordFilterText       || '').trim(); // raw text for regex
+
+  const cloned = JSON.parse(JSON.stringify(data));
+
+  cloned.children = (cloned.children || []).map(cluster => {
+    const clusterName   = (cluster.name || '').trim();
+    const clusterNameLc = clusterName.toLowerCase();
+
+    // cluster filter (case insensitive)
+    const clusterOk = (clusterFilterVal === 'all' || clusterNameLc === clusterFilterVal);
+    if (!clusterOk) {
+      cluster.children = [];
+      return cluster;
+    }
+
+    cluster.children = (cluster.children || []).map(theme => {
+      const themeLabel   = getThemeLabel(theme);
+      const themeLabelLc = themeLabel.toLowerCase();
+
+      // theme filter (case insensitive)
+      const themeOk = (themeFilterVal === 'all' || themeLabelLc === themeFilterVal);
+
+      theme.children = (theme.children || []).filter(author => {
+        const authorName   = getAuthorName(author);
+        const authorNameLc = authorName.toLowerCase();
+
+        // author filter (case insensitive)
+        const authorOk = (authorFilterVal === 'all' || authorNameLc === authorFilterVal);
+
+        // keyword filter with exact word matching
+        let keywordOk = true;
+        if (kw) {
+          keywordOk = false;
+
+          // check cluster / theme / author name
+          if (
+            matchesExactWord(clusterName, kw) ||
+            matchesExactWord(themeLabel, kw)  ||
+            matchesExactWord(authorName, kw)
+          ) {
+            keywordOk = true;
+          } else {
+            // check publication titles and DOIs
+            const pubs = Array.isArray(author.theme_publications)
+              ? author.theme_publications
+              : [];
+
+            for (let i = 0; i < pubs.length; i++) {
+              const p = pubs[i];
+              const title = p.title || '';
+              const doi   = p.doi   || '';
+
+              if (matchesExactWord(title, kw) || matchesExactWord(doi, kw)) {
+                keywordOk = true;
+                break;
+              }
+            }
+          }
+        }
+
+        return authorOk && themeOk && keywordOk;
+      });
+
+      return theme;
+    }).filter(theme => (theme.children || []).length > 0);
+
+    return cluster;
+  }).filter(cluster => (cluster.children || []).length > 0);
+
+  return cloned;
+}
+
+	
+
+    // ---------- popup builders ----------
+
+    function buildAuthorPublicationsHtml(authorData, themeName, clusterName) {
+      const authorName = getAuthorName(authorData);
+      const pubs = Array.isArray(authorData.theme_publications)
+        ? authorData.theme_publications
+        : [];
+
+      let html = '';
+
+      html += '<div class="popup-body-section">';
+      html += `<h3>${authorName}</h3>`;
+      if (clusterName) html += `<p><strong>Cluster:</strong> ${clusterName}</p>`;
+      if (themeName)   html += `<p><strong>Theme:</strong> ${themeName}</p>`;
+      if (authorData.department) {
+        html += `<p><strong>Department:</strong> ${authorData.department}</p>`;
+      }
+      html += '</div>';
+
+      html += '<div class="popup-body-section">';
+      html += '<h3>Publications / Items in this theme</h3>';
+
+      if (!pubs.length) {
+        html += '<p>No items assigned for this author in this theme.</p>';
+        html += '</div>';
+        return html;
+      }
+
+      html += '<ul class="popup-pub-list">';
+      pubs.forEach((p, idx) => {
+        const title = p.title || '(No title)';
+        const year  = p.year  || '';
+        let type = p.source_type || '';
+			if (type === 'funding') {
+			  type = 'Funded Project';
+			}else if (type === 'publication') {
+				type = 'Publication';
+			}
+
+        const doiRaw = (p.doi || '').trim();
+
+        let doiHtml = '';
+        if (doiRaw) {
+          const url = doiRaw.toLowerCase().startsWith('http')
+            ? doiRaw
+            : `https://doi.org/${doiRaw}`;
+          doiHtml = `<div class="popup-doi">DOI: <a href="${url}" target="_blank" rel="noopener noreferrer">${doiRaw}</a></div>`;
+        }
+
+        html += '<li class="popup-pub-item">';
+        html += `<div class="popup-pub-title">${idx+1}. ${title}</div>`;
+        if (year || type) {
+          const metaParts = [];
+          if (year) metaParts.push(year);
+          if (type) metaParts.push(type);
+          if (metaParts.length) {
+            html += `<div class="popup-meta">${metaParts.join(' · ')}</div>`;
+          }
+        }
+        html += doiHtml;
+        html += '</li>';
+      });
+      html += '</ul>';
+      html += '</div>';
+
+      return html;
+    }
+
+    function showAuthorPopup(authorNode, themeNode, clusterNode) {
+      const authorData = authorNode.data;
+      const themeName   = themeNode ? getThemeLabel(themeNode.data) : '';
+      const clusterName = clusterNode ? (clusterNode.data.name || '') : '';
+      const html = buildAuthorPublicationsHtml(authorData, themeName, clusterName);
+      const title = `${getAuthorName(authorData)} – ${themeName || 'Theme'}`;
+      openPopup(title, html);
+    }
+
+    function showThemePopup(themeNode, clusterNode) {
+      const themeData   = themeNode.data;
+      const clusterName = clusterNode ? (clusterNode.data.name || '') : '';
+      const themeName   = getThemeLabel(themeData);
+      const desc        = (themeData.description || themeData.theme_description || '').trim();
+
+      let html = '<div class="popup-body-section">';
+      html += `<h3>${themeName}</h3>`;
+      if (clusterName) {
+        html += `<p><strong>Cluster:</strong> ${clusterName}</p>`;
+      }
+      if (desc) {
+        html += `<p>${desc}</p>`;
+      } else {
+        html += '<p>No description available.</p>';
+      }
+      html += '</div>';
+
+      openPopup(`Theme: ${themeName}`, html);
+    }
+
+    function showClusterPopup(clusterNode) {
+      const clusterData = clusterNode.data;
+      const name = clusterData.name || '';
+      const desc = (clusterData.cluster_description || clusterData.description || '').trim();
+
+      let html = '<div class="popup-body-section">';
+      html += `<h3>${name}</h3>`;
+      if (desc) {
+        html += `<p>${desc}</p>`;
+      } else {
+        html += '<p>No description available.</p>';
+      }
+      html += '</div>';
+
+      openPopup(`Cluster: ${name}`, html);
+    }
+
+    // ---------- rendering ----------
+
+    function updateVisualization() {
+      const authorSel   = document.getElementById('authorFilter');
+      const clusterSel  = document.getElementById('clusterFilter');
+      const themeSel    = document.getElementById('themeFilter');
+      const keywordInput = document.getElementById('keywordFilter');
+
+      selectedAuthorName   = (authorSel.value || 'ALL');
+      selectedClusterFilter = (clusterSel.value || 'ALL');
+      selectedThemeFilter   = (themeSel.value || 'ALL');
+      keywordFilterText     = (keywordInput.value || '').trim();
+
+      document.getElementById("mount").innerHTML = "";
+      renderTreeVisualization();
+    }
+	
+const CUSTOM_LABEL_WRAPS = {
+  "Structural Systems, Advanced Materials, Mechanics & Smart Manufacturing":
+    "Structural Systems, Advanced Materials,\nMechanics & Smart Manufacturing",
+  
+      "Structures (experimental & computational), Smart structures, Structural & Composite materials": 
+      "Structures (experimental & computational), Smart structures, \nStructural & Composite materials",
+
+      "Advanced Materials, Additive Manufacturing, polymers, & Nanotechnology": 
+      "Advanced Materials, Additive Manufacturing, polymers, \n& Nanotechnology",
+
+};
+
+
+
+    function renderTreeVisualization() {
+      const filteredByAll = applyAllFilters(rawData);
+      const filteredData  = filterAuthorsByMinItems(filteredByAll);
+      const clusters = filteredData.children || [];
+
+      //const palette = (d3.schemeTableau10 || []).concat((d3.schemeSet3 || []));
+            const palette = [
+			  "#1F77B4", // blue
+			  "#FF7F0E", //  orange
+			  "#2CA02C", // green
+			  "#D62728", // red
+			  "#9467BD", // purple
+			  "#8C564B", // brown
+			  "#E377C2", // pink
+			  "#7F7F7F", // gray
+			  "#BCBD22", // chartreuse
+			  "#17BECF"  // cyan
+			];
+	  
+	  const color = d3.scaleOrdinal(
+        clusters.map(d => d.id),
+        palette.slice(0, Math.max(10, clusters.length))
+      );
+
+      const dx = 30, TREE_BOTTOM_PAD = 60;
+
+      const containerDiv = document.createElement("div");
+      containerDiv.style.display = "flex";
+      containerDiv.style.flexDirection = "column";
+      containerDiv.style.gap = "20px";
+      containerDiv.style.padding = "20px";
+
+      if (!clusters.length){
+        containerDiv.innerHTML = `<div style="color:#6b7280; padding:8px;">No clusters match current filters.</div>`;
+        document.getElementById("mount").appendChild(containerDiv);
+        return;
+      }
+
+      clusters.forEach(cluster => {
+        const root = d3.hierarchy({
+          name: cluster.name,
+          type:'cluster',
+          id: cluster.id,
+          cluster_description: cluster.description,
+          children: cluster.children || []
+        });
+
+        const treeWidth = 2200;
+        const tree = d3.tree().nodeSize([dx, treeWidth/(root.height+1)]);
+        tree(root);
+
+        let x0 = Infinity, x1 = -x0;
+        root.each(d => {
+          if (d.x > x1) x1 = d.x;
+          if (d.x < x0) x0 = d.x;
+        });
+        const height = x1 - x0 + dx*2 + TREE_BOTTOM_PAD;
+
+        const svg = d3.create("svg")
+          .attr("width", treeWidth)
+          .attr("height", height)
+          .attr("viewBox", [-80, x0-dx, treeWidth, height])
+          .attr("style", "max-width:100%;height:auto;font:14px system-ui, -apple-system, Segoe UI, Roboto, Arial;");
+
+        svg.append("g")
+          .attr("fill","none")
+          .attr("stroke-opacity",0.5)
+          .attr("stroke-width",2)
+          .selectAll("path")
+          .data(root.links())
+          .join("path")
+          .attr("stroke", color(cluster.id))
+          .attr("d", d3.linkHorizontal().x(d=>d.y).y(d=>d.x));
+
+        const node = svg.append("g")
+          .attr("stroke-linejoin","round")
+          .attr("stroke-width",4)
+          .selectAll("g")
+          .data(root.descendants())
+          .join("g")
+          .attr("transform", d => `translate(${d.y},${d.x})`);
+
+        node.append("circle")
+          .attr("r", d =>
+            d.data.type === 'cluster' ? 8 :
+            d.data.type === 'theme'   ? 5 : 3
+          )
+          .attr("fill", d =>
+            d3.color(color(cluster.id))
+              .darker(
+                d.data.type === 'author' ? 1 :
+                d.data.type === 'theme'  ? 0.5 : 0
+              )
+          )
+          .attr("stroke","white");
+
+        const label = node.append("text")
+          .attr("dy","0.31em")
+          .attr("x", d =>
+            d.data.type === 'cluster' ? 15 :
+            d.data.type === 'theme'   ? 12 : 20
+          )
+          .attr("text-anchor","start")
+          .attr("stroke","white")
+          .attr("stroke-width",3)
+          .attr("paint-order","stroke")
+          .style("font-weight", d =>
+            d.data.type === 'cluster' ? 700 :
+            d.data.type === 'theme'   ? 600 : 400
+          )
+          .style("font-size", d =>
+            d.data.type === 'cluster' ? "28px" :
+            d.data.type === 'theme'   ? "26px" : "24px"
+          )
+          .style("fill","black");
+
+label.each(function(d) {
+  const sel = d3.select(this);
+
+  // AUTHOR → keep one line behavior
+  if (d.data.type === "author") {
+    sel.text(getAuthorName(d.data));
+    return;
+  }
+
+  // CLUSTER or THEME
+  let txt = d.data.name || "";
+
+  
+  if (CUSTOM_LABEL_WRAPS[txt]) {
+    const wrapped = CUSTOM_LABEL_WRAPS[txt].split("\n");
+    sel.text(null);  // clear old text
+
+    wrapped.forEach((line, i) => {
+      sel.append("tspan")
+        .text(line)
+        .attr("x", 12)
+        .attr("dy", i === 0 ? "0em" : "1.1em");
+    });
+
+  } else {
+    // default behavior for normal labels
+    if (d.data.type === "cluster") sel.text(txt);
+    else sel.text(getThemeLabel(d.data));
+  }
+});
+
+
+        // click handlers for popups
+        node.style("cursor", "pointer")
+          .on("click", function(event, d) {
+            if (d.data.type === 'author') {
+              const themeNode   = d.parent;
+              const clusterNode = themeNode ? themeNode.parent : null;
+              showAuthorPopup(d, themeNode, clusterNode);
+            } else if (d.data.type === 'theme') {
+              const clusterNode = d.parent;
+              showThemePopup(d, clusterNode);
+            } else if (d.data.type === 'cluster') {
+              showClusterPopup(d);
+            }
+          });
+
+        containerDiv.appendChild(svg.node());
+      });
+
+      document.getElementById("mount").appendChild(containerDiv);
+    
+	}
+	
+	
+  </script>
+</body>
+</html>
